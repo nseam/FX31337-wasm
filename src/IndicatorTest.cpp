@@ -98,22 +98,6 @@ int main(int argc, char **argv) {
 
   TesterValues values = Tester::GetValues(getValuesParams);
 
-  ArrayResize(values.timestep_based, 1);
-  values.timestep_based[0].time_ms = 5;
-  ArrayResize(values.timestep_based[0].values, 1);
-  values.timestep_based[0].values[0] = TesterValuesColumnValue("RSI (20)", TYPE_DOUBLE);
-  values.timestep_based[0].values[0].Add(0.224, 0);
-  values.timestep_based[0].values[0].Add(0.22, 1000);
-  values.timestep_based[0].values[0].Add(0.24, 2000);
-  values.timestep_based[0].values[0].Add(0.2254, 3000);
-  values.timestep_based[0].values[0].Add(0.2284, 4000);
-  values.timestep_based[0].values[0].Add(0.2214, 5000);
-  values.timestep_based[0].values[0].Add(0.2114, 6000);
-
-  ArrayResize(values.loose, 1);
-  ArrayResize(values.loose[0].values, 1);
-  values.loose[0].values[0] = TesterValuesColumnValue("RENKO (5)", TYPE_DOUBLE, 0, 1000, 25, 28.21, 25, 26.3, 23, 3);
-
   Print("Fetched values for params: ", getValuesParams.ToString());
 
   Print("Values fetched:\n", values.ToString());

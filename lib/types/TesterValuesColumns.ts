@@ -1,5 +1,5 @@
+import { IndicatorDataEntry } from './IndicatorDataEntry';
 import { TesterIndicatorInfo } from './TesterIndicatorInfo';
-import { TesterValuesColumnValue } from './TesterValuesColumnValue';
 
 /**
  * A single time-column entry returned by Tester.GetValues(). Groups all
@@ -14,5 +14,5 @@ export interface TesterValuesColumns {
   /** Centre timestamp of this column in milliseconds. */
   time_ms: number;
   /** Aggregated per-output values for this column. */
-  values: TesterValuesColumnValue[];
+  values: IndicatorDataEntry[];
 }

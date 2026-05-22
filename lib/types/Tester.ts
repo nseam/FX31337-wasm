@@ -2,6 +2,7 @@ import { IndicatorData } from './Indicators/IndicatorData';
 import { Indi_TickProvider } from './Indicators/Indi_TickProvider';
 import { TesterValuesFetchParams } from './TesterValuesFetchParams';
 import { TesterValues } from './TesterValues';
+import { TesterValuesColumns } from './TesterValuesColumns';
 
 /**
  * Tester class for backtesting indicators.
@@ -35,6 +36,18 @@ export class Tester {
    * @param tf Timeframe constant (e.g. from lib.timeframes).
    */
   public static AddPlatformWise(indicator: IndicatorData, symbol: string, tf: number): void {}
+
+  /**
+   * Feeds a TickProvider indicator with tick data parsed from a CSV string.
+   *
+   * CSV format (no header row): Date,Bid,Ask,Volume,Spread
+   * Date format: YYYY.MM.DD HH:MM:SS.mmm (UTC)
+   * Volume and Spread columns are accepted but ignored.
+   *
+   * @param tickProvider The TickProvider indicator to feed.
+   * @param csv Raw CSV text with no header row.
+   */
+  public static FeedTickProviderCsv(tickProvider: Indi_TickProvider, csv: string): void {}
 
   /**
    * Feeds the default tick provider for a given symbol with tick data.
@@ -108,4 +121,37 @@ export class Tester {
     zoom: number,
     visibleIntervals: number
   ): TesterValuesFetchParams { return new TesterValuesFetchParams(); }
+
+  /**
+   * Retrieves raw (ungrouped) values for a single indicator without time-step aggregation.
+   *
+   * Each valid bar produces one `TesterValuesColumnValue` per output mode, in chronological
+   * order (oldest first). Suitable for direct series rendering.
+   *
+   * @param indicator The indicator to retrieve values from.
+   * @param timeFromMs Start of range in ms; pass `0n` to retrieve all available history.
+   * @param timeToMs End of range in ms; pass `0n` to retrieve up to the most recent bar.
+   * @returns Column object with `indicator_info` and `values` array.
+   */
+  public static GetIndicatorColumnsUngrouped(
+    indicator: IndicatorData,
+    timeFromMs: bigint,
+    timeToMs: bigint
+  ): TesterValuesColumns { return { indicator_info: { name: '', index: 0, num_values: 0, symbol: '', tf: 0 }, time_ms: 0, values: [] }; }
+
+  /**
+   * Retrieves raw (ungrouped) values for every non-candle, non-tick indicator on the platform.
+   *
+   * Returns one entry per indicator. Each entry's `values` array contains one
+   * `TesterValuesColumnValue` per valid bar per output mode, in chronological order.
+   * For multi-mode indicators output names are suffixed: `"RSI[0]"`, `"RSI[1]"`, etc.
+   *
+   * @param timeFromMs Start of range in ms; pass `0n` to retrieve all available history.
+   * @param timeToMs End of range in ms; pass `0n` to retrieve up to the most recent bar.
+   * @returns Array of column objects, one per indicator.
+   */
+  public static GetAllIndicatorColumnsUngrouped(
+    timeFromMs: bigint,
+    timeToMs: bigint
+  ): TesterValuesColumns[] { return []; }
 }

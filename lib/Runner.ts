@@ -74,6 +74,9 @@ export async function runTest(
     return;
   }
   let lib: LibModule = await contentJs({
+    // Suppress all C++ Print() output to keep the terminal clean.
+    print: () => {},
+    printErr: () => {},
     locateFile(path: string): string {
       if (path.endsWith('.wasm') && contentWasm) {
         return contentWasm;

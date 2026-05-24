@@ -16,6 +16,9 @@ export type LibModuleDefaults = {
     TickProvider: typeof Indi_TickProvider;
     Tf: typeof IndicatorTf;
     RSI: typeof IndicatorData;
+    MA: typeof IndicatorData;
+    AppliedPrice: typeof IndicatorData;
+    OHLC: typeof IndicatorData;
   };
   timeframes: typeof timeframes;
   ap: {

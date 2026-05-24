@@ -3,6 +3,7 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "node",
+    "lib": ["ES2020"],
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -10,8 +11,9 @@
     "declaration": true,
     "declarationDir": "./dist/types",
     "outDir": "./dist",
-    "rootDir": "./lib"
+    "rootDir": ".",
+    "types": ["node"]
   },
-  "include": ["lib/**/*"],
+  "include": ["lib/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -20,6 +20,7 @@
     "@rollup/plugin-alias": "^4.0.3",
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/asciichart": "^1.5.8",
+    "@types/node": "^25.9.1",
     "babelrc-rollup": "^3.0.0",
     "chartjs-node-canvas": "^5.0.0",
     "http-server": "^14.1.1",

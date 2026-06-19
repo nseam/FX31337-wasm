@@ -105,6 +105,12 @@ async function runTest(what, contentJs, contentWasm) {
             }
             return path;
         },
+        print: (...args) => {
+            console.log(...args);
+        },
+        printErr: (...args) => {
+            console.error(...args);
+        },
     });
     lib = { ...lib, ...namespaces(lib) };
     lib['TickAB'] = TickAB;

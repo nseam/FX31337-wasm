@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -111,20 +111,40 @@ async function main() {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
 
-  const inputPath = join(__dirname, '../tests/data/2022-01-02--22h_ticks.csv');
-  const outputPath = join(__dirname, '../tests/data/2022-01-02--22h_ohlc.csv');
+  const dataDir = join(__dirname, '../tests/data');
+  const outputPath = join(dataDir, 'aggregated.csv');
 
-  console.log(`Reading: ${inputPath}`);
-  const csvContent = readFileSync(inputPath, 'utf-8');
-  
-  console.log('Parsing tick data...');
-  const records = parseTickCsv(csvContent);
-  console.log(`Parsed ${records.length} tick records`);
+  // Find all tick CSV files (exclude the output file)
+  const tickFiles = readdirSync(dataDir)
+    .filter(f => f.endsWith('_ticks.csv') && !f.startsWith('aggregated'))
+    .sort();
 
+  if (tickFiles.length === 0) {
+    console.warn('No tick CSV files found in:', dataDir);
+    return;
+  }
+
+  console.log(`Found ${tickFiles.length} tick file(s):`, tickFiles);
+
+  // Parse and collect all records from all files
+  const allRecords = [];
+  for (const file of tickFiles) {
+    const filePath = join(dataDir, file);
+    console.log(`Reading: ${file}`);
+    const csvContent = readFileSync(filePath, 'utf-8');
+    const records = parseTickCsv(csvContent);
+    console.log(`  Parsed ${records.length} ticks`);
+    allRecords.push(...records);
+  }
+
+  console.log(`\nTotal: ${allRecords.length} tick records across all files`);
+
+  // Aggregate to OHLC
   console.log('Aggregating to OHLC...');
-  const bars = aggregateToOHLC(records);
+  const bars = aggregateToOHLC(allRecords);
   console.log(`Generated ${bars.length} minute bars`);
 
+  // Write output
   console.log('Converting to CSV...');
   const ohlcCsv = ohlcToCSV(bars);
 

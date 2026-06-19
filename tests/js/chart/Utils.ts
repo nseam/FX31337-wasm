@@ -45,11 +45,12 @@ export async function generateCandlestickChart(lib: any, tfIndicator: any, chart
       return;
     }
 
+    if (false)
     console.log(JSON.stringify(ohlcData, (key, value) => {
         value = (typeof value === "bigint" ? Number(value) : value);
 
         if (key === 'o' || key === 'h' || key === 'l' || key === 'c')
-          value = parseFloat(value).toFixed(5);
+          ;//value = parseFloat(value).toFixed(5);
         else if (key === 'x')
           // Converting timestamp into `2022.01.02 22:03:00.000` format.
           value = new Date(value * 1000).toISOString().replace('T', ' ').replace('Z', '').replace(/-/g, '.').replace(/:/g, '.');

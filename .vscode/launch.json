@@ -4,20 +4,26 @@
     {
       // Debugs TypeScript via tsx source maps + C++ via WASM DWARF debug info.
       // Requires the "WebAssembly DWARF Debugging" extension (ms-vscode.wasm-dwarf-debugging).
+      // Uses `node --import tsx` so the V8 inspector attaches to a real node process on Windows
+      // (avoids the tsx shell-script wrapper which can prevent --inspect-brk from forwarding).
       "type": "node",
       "request": "launch",
       "name": "Debug IndicatorTest (TS + WASM)",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "--import",
-        "tsx"
-      ],
+      "runtimeArgs": ["--import", "tsx"],
       "program": "${workspaceFolder}/tests/js/IndicatorTest.ts",
       "cwd": "${workspaceFolder}",
       "sourceMaps": true,
-      "smartStep": true,
+      "stopOnEntry": false,
+      "skipFiles": [
+        "<node_internals>/**",
+        "/emsdk/**",
+        "/wasm/**",
+        "${workspaceFolder}/node_modules/**",
+      ],
       "env": {
         "NODE_PATH": "${workspaceFolder}/node_modules"
+      },
       }
     },
     {
@@ -26,14 +32,18 @@
       "request": "launch",
       "name": "Build & Debug IndicatorTest (TS + WASM)",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "--import",
-        "tsx"
-      ],
+      "runtimeArgs": ["--import", "tsx"],
       "program": "${workspaceFolder}/tests/js/IndicatorTest.ts",
       "cwd": "${workspaceFolder}",
       "sourceMaps": true,
+      "stopOnEntry": false,
       "smartStep": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "/emsdk/**",
+        "/wasm/**",
+        "${workspaceFolder}/node_modules/**",
+      ],
       "env": {
         "NODE_PATH": "${workspaceFolder}/node_modules"
       },

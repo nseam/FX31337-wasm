@@ -27,10 +27,10 @@
 #include <emscripten/bind.h>
 #include <emscripten/emscripten.h>
 #endif
-#define __debug__
-#define __debug_indicator__
-#define __debug_emscripten__
-#define __debug_verbose__
+//#define __debug__
+//#define __debug_indicator__
+//#define __debug_emscripten__
+//#define __debug_verbose__
 
 // Local includes.
 #include "classes/Tester/Tester.h"
@@ -102,10 +102,10 @@ int main(int argc, char **argv) {
 
   Print("Values fetched:\n", values.ToString());
 
-#ifdef __cplusplus
-  std::system("PAUSE");
 #endif
 
+#ifdef __EMSCRIPTEN__
+  emscripten_exit_with_live_runtime();
 #endif
 
   return 0;

@@ -450,6 +450,11 @@ TTY.init();
   // End ATPOSTCTORS hooks
 }
 
+function preMain() {
+  checkStackCookie();
+  // No ATMAINS hooks
+}
+
 function postRun() {
   checkStackCookie();
    // PThreads reuse the runtime from the main thread.
@@ -3295,45 +3300,6 @@ async function createWasm() {
       runtimeKeepaliveCounter = 0;
     };
 
-  var __emscripten_system = (command) => {
-      if (ENVIRONMENT_IS_NODE) {
-        if (!command) return 1; // shell is available
-  
-        var cmdstr = UTF8ToString(command);
-        if (!cmdstr.length) return 0; // this is what glibc seems to do (shell works test?)
-  
-        var cp = require('node:child_process');
-        var ret = cp.spawnSync(cmdstr, [], {shell:true, stdio:'inherit'});
-  
-        var _W_EXITCODE = (ret, sig) => ((ret) << 8 | (sig));
-  
-        // this really only can happen if process is killed by signal
-        if (ret.status === null) {
-          // sadly node doesn't expose such function
-          var signalToNumber = (sig) => {
-            // implement only the most common ones, and fallback to SIGINT
-            switch (sig) {
-              case 'SIGHUP': return 1;
-              case 'SIGQUIT': return 3;
-              case 'SIGFPE': return 8;
-              case 'SIGKILL': return 9;
-              case 'SIGALRM': return 14;
-              case 'SIGTERM': return 15;
-              default: return 2;
-            }
-          }
-          return _W_EXITCODE(0, signalToNumber(ret.signal));
-        }
-  
-        return _W_EXITCODE(ret.status, 0);
-      }
-      // int system(const char *command);
-      // http://pubs.opengroup.org/onlinepubs/000095399/functions/system.html
-      // Can't call external programs.
-      if (!command) return 0; // no shell available
-      return -52;
-    };
-
   var emval_methodCallers = [];
   var emval_addMethodCaller = (caller) => {
       var id = emval_methodCallers.length;
@@ -3621,6 +3587,11 @@ ${functionBody}
         stringToUTF8(winterName, dst_name, 17);
         stringToUTF8(summerName, std_name, 17);
       }
+    };
+
+  var _emscripten_exit_with_live_runtime = () => {
+      
+      throw 'unwind';
     };
 
   var abortOnCannotGrowMemory = (requestedSize) => {
@@ -6419,6 +6390,42 @@ var FS_stdin_getChar_buffer = [];
 
   
   
+  /** @param {boolean|number=} implicit */
+  var exitJS = (status, implicit) => {
+      EXITSTATUS = status;
+  
+      checkUnflushedContent();
+  
+      // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
+      if (keepRuntimeAlive() && !implicit) {
+        var msg = `program exited (with status: ${status}), but keepRuntimeAlive() is set (counter=${runtimeKeepaliveCounter}) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)`;
+        readyPromiseReject?.(msg);
+        err(msg);
+      }
+  
+      _proc_exit(status);
+    };
+
+  var handleException = (e) => {
+      // Certain exception types we do not treat as errors since they are used for
+      // internal control flow.
+      // 1. ExitStatus, which is thrown by exit()
+      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
+      //    that wish to return to JS event loop.
+      if (e instanceof ExitStatus || e == 'unwind') {
+        return EXITSTATUS;
+      }
+      checkStackCookie();
+      if (e instanceof WebAssembly.RuntimeError) {
+        if (_emscripten_stack_get_current() <= 0) {
+          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 65536)');
+        }
+      }
+      quit_(1, e);
+    };
+
+  
+  
   var stringToUTF8OnStack = (str) => {
       var size = lengthBytesUTF8(str) + 1;
       var ret = stackAlloc(size);
@@ -6493,7 +6500,6 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'convertU32PairToI53',
   'getTempRet0',
   'zeroMemory',
-  'exitJS',
   'getHeapMax',
   'growMemory',
   'withStackSave',
@@ -6508,7 +6514,6 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'autoResumeAudioContext',
   'getDynCaller',
   'dynCall',
-  'handleException',
   'runtimeKeepalivePush',
   'runtimeKeepalivePop',
   'callUserCallback',
@@ -6674,6 +6679,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'setTempRet0',
   'createNamedFunction',
   'ptrToString',
+  'exitJS',
   'abortOnCannotGrowMemory',
   'ENV',
   'ERRNO_CODES',
@@ -6685,6 +6691,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'warnOnce',
   'readEmAsmArgsArray',
   'getExecutableName',
+  'handleException',
   'keepRuntimeAlive',
   'asyncLoad',
   'mmapAlloc',
@@ -6994,7 +7001,7 @@ function checkIncomingModuleAPI() {
 
 // Imports from the Wasm binary.
 var ___getTypeName = makeInvalidEarlyAccess('___getTypeName');
-var _main = makeInvalidEarlyAccess('_main');
+var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
 var _malloc = Module['_malloc'] = makeInvalidEarlyAccess('_malloc');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
@@ -7042,7 +7049,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['memory'] != 'undefined', 'missing Wasm export: memory');
   assert(typeof wasmExports['__indirect_function_table'] != 'undefined', 'missing Wasm export: __indirect_function_table');
   ___getTypeName = createExportWrapper('__getTypeName', 1);
-  _main = createExportWrapper('__main_argc_argv', 2);
+  _main = Module['_main'] = createExportWrapper('__main_argc_argv', 2);
   _malloc = Module['_malloc'] = createExportWrapper('malloc', 1);
   _fflush = createExportWrapper('fflush', 1);
   _emscripten_stack_get_end = wasmExports['emscripten_stack_get_end'];
@@ -7135,8 +7142,6 @@ var wasmImports = {
   /** @export */
   _emscripten_runtime_keepalive_clear: __emscripten_runtime_keepalive_clear,
   /** @export */
-  _emscripten_system: __emscripten_system,
-  /** @export */
   _emval_create_invoker: __emval_create_invoker,
   /** @export */
   _emval_decref: __emval_decref,
@@ -7162,6 +7167,8 @@ var wasmImports = {
   _timegm_js: __timegm_js,
   /** @export */
   _tzset_js: __tzset_js,
+  /** @export */
+  emscripten_exit_with_live_runtime: _emscripten_exit_with_live_runtime,
   /** @export */
   emscripten_resize_heap: _emscripten_resize_heap,
   /** @export */
@@ -7203,8 +7210,6 @@ var wasmImports = {
   /** @export */
   invoke_ii,
   /** @export */
-  invoke_iid,
-  /** @export */
   invoke_iiddddiijji,
   /** @export */
   invoke_iiddddj,
@@ -7233,9 +7238,9 @@ var wasmImports = {
   /** @export */
   invoke_iiji,
   /** @export */
-  invoke_j,
-  /** @export */
   invoke_ji,
+  /** @export */
+  invoke_jii,
   /** @export */
   invoke_jiii,
   /** @export */
@@ -7244,8 +7249,6 @@ var wasmImports = {
   invoke_v,
   /** @export */
   invoke_vi,
-  /** @export */
-  invoke_vidi,
   /** @export */
   invoke_vidiii,
   /** @export */
@@ -7334,17 +7337,6 @@ function invoke_ii(index,a1) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iid(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -7463,32 +7455,21 @@ function invoke_diiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8) {
   }
 }
 
-function invoke_viiiiii(index,a1,a2,a3,a4,a5,a6) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_vijii(index,a1,a2,a3,a4) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
 function invoke_i(index) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)();
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_viiiiii(index,a1,a2,a3,a4,a5,a6) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -7515,6 +7496,73 @@ function invoke_vidiii(index,a1,a2,a3,a4,a5) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
     _setThrew(1, 0);
+  }
+}
+
+function invoke_vijii(index,a1,a2,a3,a4) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3,a4);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_dii(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iiddddj(index,a1,a2,a3,a4,a5,a6) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_viiji(index,a1,a2,a3,a4) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3,a4);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_jii(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+    return 0n;
   }
 }
 
@@ -7596,10 +7644,10 @@ function invoke_viij(index,a1,a2,a3) {
   }
 }
 
-function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
+function invoke_vijd(index,a1,a2,a3) {
   var sp = stackSave();
   try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7);
+    getWasmTableEntry(index)(a1,a2,a3);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -7607,10 +7655,21 @@ function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
   }
 }
 
-function invoke_dii(index,a1,a2) {
+function invoke_iiddddiijji(index,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10) {
   var sp = stackSave();
   try {
-    return getWasmTableEntry(index)(a1,a2);
+    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_viiijd(index,a1,a2,a3,a4,a5) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3,a4,a5);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -7651,121 +7710,10 @@ function invoke_viji(index,a1,a2,a3) {
   }
 }
 
-function invoke_vidi(index,a1,a2,a3) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_did(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
 function invoke_diiiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8,a9) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_diiiiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_j(index) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)();
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-    return 0n;
-  }
-}
-
-function invoke_iiji(index,a1,a2,a3) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiddddj(index,a1,a2,a3,a4,a5,a6) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiji(index,a1,a2,a3,a4) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_vijd(index,a1,a2,a3) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiddddiijji(index,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10);
-  } catch(e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiijd(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -7788,6 +7736,39 @@ function invoke_diiiii(index,a1,a2,a3,a4,a5) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1,a2,a3,a4,a5);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_did(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_diiiiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iiji(index,a1,a2,a3) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2,a3);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -7879,6 +7860,35 @@ function invoke_viiiiiiiiiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a1
 
 var calledRun;
 
+function callMain(args = []) {
+  assert(runDependencies == 0, 'cannot call main when async dependencies remain! (listen on Module["onRuntimeInitialized"])');
+  assert(typeof onPreRuns === 'undefined' || onPreRuns.length == 0, 'cannot call main when preRun functions remain to be called');
+
+  var entryFunction = _main;
+
+  args.unshift(thisProgram);
+
+  var argc = args.length;
+  var argv = stackAlloc((argc + 1) * 4);
+  var argv_ptr = argv;
+  for (var arg of args) {
+    HEAPU32[((argv_ptr)>>2)] = stringToUTF8OnStack(arg);
+    argv_ptr += 4;
+  }
+  HEAPU32[((argv_ptr)>>2)] = 0;
+
+  try {
+
+    var ret = entryFunction(argc, argv);
+
+    // if we're not running an evented main loop, it's time to exit
+    exitJS(ret, /* implicit = */ true);
+    return ret;
+  } catch (e) {
+    return handleException(e);
+  }
+}
+
 function stackCheckInit() {
   // This is normally called automatically during __wasm_call_ctors but need to
   // get these values before even running any of the ctors so we call it redundantly
@@ -7916,11 +7926,14 @@ function run(args = arguments_) {
 
     initRuntime();
 
+    preMain();
+
     readyPromiseResolve?.(Module);
     Module['onRuntimeInitialized']?.();
     consumedModuleProp('onRuntimeInitialized');
 
-    assert(!Module['_main'], 'compiled without a main, but one is present. if you added it from JS, use Module["onRuntimeInitialized"]');
+    var noInitialRun = Module['noInitialRun'] || false;
+    if (!noInitialRun) callMain(args);
 
     postRun();
   }

@@ -10,6 +10,8 @@ import { saveIndicatorChart } from './chart/ChartExportImage';
 // @ts-ignore
 import wasmJs from '../../dist/IndicatorTest';
 
+const __debug__ = false;
+
 class IndicatorRunTest extends Test {
   async run(lib: LibModule): Promise<void> {
     lib.Tester.Init();
@@ -23,9 +25,9 @@ class IndicatorRunTest extends Test {
     rsiM1.SetName('RSI M1');
     rsiM1.SetSource(tfM1);
 
-    //const appliedPriceM1 = new lib.indicators.AppliedPrice({ appliedPrice: lib.ap.close, shift: 0 });
-    //appliedPriceM1.SetName('Applied Price M1');
-    //appliedPriceM1.SetSource(tfM1);
+    const appliedPriceM1 = new lib.indicators.AppliedPrice({ appliedPrice: lib.ap.close, shift: 0 });
+    appliedPriceM1.SetName('Applied Price M1');
+    appliedPriceM1.SetSource(tfM1);
 
     lib.Tester.Add(rsiM1);
     //lib.Tester.Add(appliedPriceM1);
@@ -39,7 +41,6 @@ class IndicatorRunTest extends Test {
     lib.Tester.RunAllTicks();
 
     // Generate chart for M1 input bars
-    console.log('\n=== Generating M1 Candle Chart ===');
     await generateCandlestickChart(lib, tfM1, 'M1 Candles');
 
     // Retrieve all ungrouped (raw, bar-by-bar) indicator values.
@@ -57,18 +58,20 @@ class IndicatorRunTest extends Test {
 
       plotAsciiChart(name, seriesData);
 
-      console.log(JSON.stringify(col.values, (key, value) => {
-          value = (typeof value === "bigint" ? Number(value) : value);
+      if (__debug__) {
+        console.log(JSON.stringify(col.values, (key, value) => {
+            value = (typeof value === "bigint" ? Number(value) : value);
 
-          if (key == 'timestamp')
-            value = new Date(value * 1000).toISOString().replace('T', ' ').replace('Z', '').replace(/-/g, '.').replace(/:/g, '.');
-          else if (typeof value === 'number')
-            value = value.toFixed(5);
+            if (key == 'timestamp')
+              value = new Date(value * 1000).toISOString().replace('T', ' ').replace('Z', '').replace(/-/g, '.').replace(/:/g, '.');
+            else if (typeof value === 'number')
+              value = value.toFixed(5);
 
-          return value;
-        },
-        2
-      ));
+            return value;
+          },
+          2
+        ));
+      }
 
 
       try {

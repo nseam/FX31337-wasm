@@ -31,8 +31,7 @@
     "typescript": "^5.4.5"
   },
   "files": [
-    "index.js",
-    "dist"
+    "lib"
   ],
   "homepage": "https://github.com/FX31337/FX31337-wasm#readme",
   "main": "index.js",

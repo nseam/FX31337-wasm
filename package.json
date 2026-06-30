@@ -31,11 +31,10 @@
     "typescript": "^5.4.5"
   },
   "files": [
+    "dist",
     "lib"
   ],
   "homepage": "https://github.com/FX31337/FX31337-wasm#readme",
-  "main": "index.js",
-  "module": "index.js",
   "name": "fx31337-wasm",
   "repository": {
     "type": "git",
@@ -43,7 +42,6 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "build-lib": "./node_modules/.bin/rollup -c",
     "clean": "node scripts/clean.mjs",
     "rebuild": "npm run clean && npm run build",
     "start": "cd dist && http-server",

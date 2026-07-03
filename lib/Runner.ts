@@ -6,6 +6,7 @@ import { timeframes } from '.';
 import { type IndicatorTf } from './types/Indicators/IndicatorTf';
 import { type IndicatorData } from './types/Indicators/IndicatorData';
 import { type Indi_TickProvider } from './types/Indicators/Indi_TickProvider';
+import { Indi_AppliedPrice } from './types/Indicators/Indi_AppliedPrice';
 
 export type LibModuleDefaults = {
   [key: string]: any;
@@ -17,7 +18,7 @@ export type LibModuleDefaults = {
     Tf: typeof IndicatorTf;
     RSI: typeof IndicatorData;
     MA: typeof IndicatorData;
-    AppliedPrice: typeof IndicatorData;
+    AppliedPrice: typeof Indi_AppliedPrice;
     OHLC: typeof IndicatorData;
   };
   timeframes: typeof timeframes;

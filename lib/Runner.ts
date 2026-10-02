@@ -7,6 +7,9 @@ import { type IndicatorTf } from './types/Indicators/IndicatorTf';
 import { type IndicatorData } from './types/Indicators/IndicatorData';
 import { type Indi_TickProvider } from './types/Indicators/Indi_TickProvider';
 import { Indi_AppliedPrice } from './types/Indicators/Indi_AppliedPrice';
+import { Indi_MA } from './types/Indicators/Indi_MA';
+import { Indi_RSI } from './types/Indicators/Indi_RSI';
+import { Indi_OHLC } from './types/Indicators/Indi_OHLC';
 
 export type LibModuleDefaults = {
   [key: string]: any;
@@ -16,10 +19,10 @@ export type LibModuleDefaults = {
   indicators: {
     TickProvider: typeof Indi_TickProvider;
     Tf: typeof IndicatorTf;
-    RSI: typeof IndicatorData;
-    MA: typeof IndicatorData;
+    RSI: typeof Indi_RSI;
+    MA: typeof Indi_MA;
     AppliedPrice: typeof Indi_AppliedPrice;
-    OHLC: typeof IndicatorData;
+    OHLC: typeof Indi_OHLC;
   };
   timeframes: typeof timeframes;
   ap: {
@@ -27,6 +30,12 @@ export type LibModuleDefaults = {
     high: number;
     low: number;
     close: number;
+  },
+  ma_methods: {
+    SMA: number;
+    EMA: number;
+    SMMA: number;
+    LWMA: number;
   };
   Tester: typeof Tester
 }

@@ -1,8 +1,6 @@
 import { IndicatorBase } from './IndicatorBase';
 
 export interface IndicatorParams {
-    period: number;
-    appliedPrice: number;
     shift: number;
 }
 

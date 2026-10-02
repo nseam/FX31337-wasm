@@ -21,16 +21,21 @@ class IndicatorRunTest extends Test {
     const tfM1 = new lib.indicators.Tf(lib.timeframes.M1);
     tfM1.SetSource(ticker);
 
-    const rsiM1 = new lib.indicators.RSI({ period: 14, appliedPrice: lib.ap.close, shift: 0 });
+    const rsiM1 = new lib.indicators.RSI({ period: 14, applied_price: lib.ap.close, shift: 0 });
     rsiM1.SetName('RSI M1');
     rsiM1.SetSource(tfM1);
 
-    const appliedPriceM1 = new lib.indicators.AppliedPrice({ appliedPrice: lib.ap.close, shift: 0 });
+    const maM1 = new lib.indicators.MA({ period: 13, applied_price: lib.ap.close, shift: 10, ma_shift: 0, ma_method: lib.ma_methods.SMA });
+    maM1.SetName('MA M1');
+    maM1.SetSource(tfM1);
+
+    const appliedPriceM1 = new lib.indicators.AppliedPrice({ applied_price: lib.ap.close, shift: 0 });
     appliedPriceM1.SetName('Applied Price M1');
     appliedPriceM1.SetSource(tfM1);
 
     lib.Tester.Add(rsiM1);
-    //lib.Tester.Add(appliedPriceM1);
+    lib.Tester.Add(appliedPriceM1);
+    lib.Tester.Add(maM1);
 
     // Load all CSV files from data folder sorted by date/time.
     const dataDir = join(dirname(fileURLToPath(import.meta.url)), '../data');
@@ -49,7 +54,7 @@ class IndicatorRunTest extends Test {
 
     for (const col of testerValues.timestep_based) {
       const name = col.indicator_info?.name ?? 'Unknown';
-      const seriesData = extractSeriesData(col);
+      const seriesData = extractSeriesData(col, 400);
 
       if (seriesData.series.length < 2) {
         console.log(`\n=== ${name} — insufficient data (${seriesData.series.length} point(s)) ===`);

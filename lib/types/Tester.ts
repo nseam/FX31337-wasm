@@ -18,6 +18,11 @@ export class Tester {
   public static Init(): void {}
 
   /**
+   * Resets the Tester to its initial state, clearing all added indicators and tick data.
+   */
+  public static Reset(): void {}
+
+  /**
    * Adds an indicator to the Tester for testing.
    * The indicator must have its candle/tick sources already configured.
    *

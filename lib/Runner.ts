@@ -10,6 +10,15 @@ import { Indi_AppliedPrice } from './types/Indicators/Indi_AppliedPrice';
 import { Indi_MA } from './types/Indicators/Indi_MA';
 import { Indi_RSI } from './types/Indicators/Indi_RSI';
 import { Indi_OHLC } from './types/Indicators/Indi_OHLC';
+import { Indi_MACD } from './types/Indicators/Indi_MACD';
+import { Indi_Stochastic } from './types/Indicators/Indi_Stochastic';
+import { Indi_WPR } from './types/Indicators/Indi_WPR';
+import { Indi_Alligator } from './types/Indicators/Indi_Alligator';
+import { Indi_Bands } from './types/Indicators/Indi_Bands';
+import { Indi_Envelopes } from './types/Indicators/Indi_Envelopes';
+import { Indi_Pivot } from './types/Indicators/Indi_Pivot';
+import { Indi_SAR } from './types/Indicators/Indi_SAR';
+import { Indi_Universal } from './types/Indicators/Indi_Universal';
 
 export type LibModuleDefaults = {
   [key: string]: any;
@@ -23,6 +32,15 @@ export type LibModuleDefaults = {
     MA: typeof Indi_MA;
     AppliedPrice: typeof Indi_AppliedPrice;
     OHLC: typeof Indi_OHLC;
+    MACD: typeof Indi_MACD;
+    Stochastic: typeof Indi_Stochastic;
+    WPR: typeof Indi_WPR;
+    Alligator: typeof Indi_Alligator;
+    Bands: typeof Indi_Bands;
+    Envelopes: typeof Indi_Envelopes;
+    Pivot: typeof Indi_Pivot;
+    SAR: typeof Indi_SAR;
+    Universal: typeof Indi_Universal;
   };
   timeframes: typeof timeframes;
   ap: {
@@ -36,6 +54,28 @@ export type LibModuleDefaults = {
     EMA: number;
     SMMA: number;
     LWMA: number;
+  };
+  sto_prices: {
+    LOWHIGH: number;
+    CLOSECLOSE: number;
+  };
+  idata: {
+    value_range: {
+      IDATA_RANGE_BINARY: number;
+      IDATA_RANGE_BITWISE: number;
+      IDATA_RANGE_MIXED: number;
+      IDATA_RANGE_PRICE: number;
+      IDATA_RANGE_PRICE_DIFF: number;
+      IDATA_RANGE_PRICE_ON_SIGNAL: number;
+      IDATA_RANGE_RANGE: number;
+      IDATA_RANGE_UNKNOWN: number;
+    };
+  };
+  pivot_methods: {
+    CAMARILLA: number;
+    CLASSIC: number;
+    FIBONACCI: number;
+    WOODIE: number;
   };
   Tester: typeof Tester
 }
@@ -81,7 +121,8 @@ function namespaces(module: LibModule): LibModule {
 export async function runTest(
   what: new () => Test,
   contentJs?: string | ContentJsLoader,
-  contentWasm?: string
+  contentWasm?: string,
+  existingInstance?: Test
 ): Promise<void> {
   if (typeof contentJs !== 'function') {
     return;
@@ -107,14 +148,16 @@ export async function runTest(
   lib['TickAB'] = TickAB;
   lib['TickTAB'] = TickTAB;
 
-  const test = new what();
+  const test = existingInstance ?? new what();
+  
   test.run(lib);
 }
 
-export function run(
+export async function run(
   what: new () => Test,
   contentJs?: string | ContentJsLoader,
-  contentWasm?: string
-): void {
-  runTest(what, contentJs, contentWasm).then(() => {});
+  contentWasm?: string,
+  existingInstance?: Test
+): Promise<void> {
+  return await runTest(what, contentJs, contentWasm, existingInstance);
 }

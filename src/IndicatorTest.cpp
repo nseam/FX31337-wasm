@@ -34,6 +34,15 @@
 
 // Local includes.
 #include "classes/Tester/Tester.h"
+#include "classes/Indicators/Oscillator/Indi_MACD.h"
+#include "classes/Indicators/Oscillator/Indi_Stochastic.h"
+#include "classes/Indicators/Oscillator/Indi_WPR.h"
+#include "classes/Indicators/PriceMulti/Indi_Alligator.h"
+#include "classes/Indicators/PriceRange/Indi_Bands.h"
+#include "classes/Indicators/PriceRange/Indi_Envelopes.h"
+#include "classes/Indicators/PriceRange/Indi_Pivot.h"
+#include "classes/Indicators/PriceRange/Indi_SAR.h"
+#include "classes/Indicators/Special/Indi_Universal.h"
 
 #define INDICATOR_TEST_SYMBOL "EURUSD"
 #define INDICATOR_TEST_TIMEFRAME PERIOD_M1
